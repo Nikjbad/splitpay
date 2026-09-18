@@ -47,6 +47,8 @@ input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 
 .btn.ghost{background:#fff;color:var(--blue);border:1.5px solid var(--blue);box-shadow:none;}
 .btn.ghost:hover{background:#F0F6FF;}
 .btn.small{padding:8px 16px;font-size:13px;border-radius:18px;}
+.mode-btn{border-radius:20px;}
+.mode-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
 
 .split-list{display:flex;flex-direction:column;gap:10px;margin-top:4px;}
 .split-item{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;}
@@ -65,6 +67,19 @@ input:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 
 .qr-card .status.paid{color:var(--green);font-weight:500;}
 
 .banner{background:#F0F6FF;border:1px solid #D2E3FC;border-radius:12px;padding:14px 18px;font-size:13.5px;color:#174EA6;margin-bottom:20px;}
+
+.steps-row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:36px;}
+.step{flex:1;min-width:200px;display:flex;gap:14px;padding:18px;border:1px solid var(--line);border-radius:14px;transform:perspective(700px) rotateX(0);transition:transform .3s;}
+.step:hover{transform:perspective(700px) rotateX(3deg) translateY(-3px);box-shadow:0 8px 18px rgba(60,64,67,.12);}
+.step .num{flex:none;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--blue),#4285F4);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 4px 10px rgba(26,115,232,.35);}
+.step > div{display:flex;flex-direction:column;gap:4px;}
+.step b{font-size:14.5px;}
+.step span{color:var(--gray);font-size:13px;}
+
+.faq-item{padding:14px 0;border-bottom:1px solid var(--line);}
+.faq-item:last-child{border-bottom:none;}
+.faq-item b{display:block;font-size:14.5px;margin-bottom:4px;}
+.faq-item p{color:var(--gray);font-size:13.5px;margin:0;}
 
 .scan-box{position:relative;border-radius:16px;overflow:hidden;background:#111;aspect-ratio:1/1;max-width:340px;margin:0 auto;box-shadow:0 10px 30px rgba(0,0,0,.25);}
 video,#scanCanvas{width:100%;height:100%;object-fit:cover;display:block;}
@@ -108,32 +123,52 @@ footer{text-align:center;color:var(--gray);font-size:12.5px;padding:36px 20px 50
     <p>Enter what's owed, divide it your way, and hand out a real UPI QR to each person — no cash math, no chasing anyone for their share.</p>
   </div>
 
+  <div class="steps-row">
+    <div class="step"><div class="num">1</div><div><b>Add the total</b><span>Who's collecting, and how much is owed in all.</span></div></div>
+    <div class="step"><div class="num">2</div><div><b>Divide it</b><span>Evenly, or a custom share for each person.</span></div></div>
+    <div class="step"><div class="num">3</div><div><b>Hand out QRs</b><span>Each person pays their own share, straight to the payee.</span></div></div>
+  </div>
+
   <!-- SPLIT TAB -->
   <div id="tab-split">
     <div class="banner">Every QR here is a genuine UPI request for that person's own share — not a way to avoid any bank fee. If your bank later charges a fee on a payment, that's shown to you honestly, not hidden by chopping the bill up.</div>
 
     <div class="card">
       <h2>1. Who's collecting?</h2>
-      <p class="sub">The UPI ID that should receive every share.</p>
-      <div class="row">
+      <p class="sub">Scan their UPI QR to fetch their account automatically, or type it in.</p>
+      <div class="row" style="align-items:flex-end;">
         <div class="field"><label>Payee name</label><input id="payeeName" placeholder="e.g. Sharma General Store"></div>
         <div class="field"><label>UPI ID</label><input id="payeeUpi" placeholder="e.g. shop@upi"></div>
         <div class="field" style="max-width:140px;"><label>Total ₹</label><input id="totalAmt" type="number" placeholder="5000"></div>
+        <button class="btn ghost" id="goScanBtn" type="button">📷 Scan their QR</button>
       </div>
+      <p id="fetchedNote" class="sub" style="margin:8px 0 0;color:var(--green);display:none;">✓ Account fetched from QR</p>
     </div>
 
     <div class="card">
-      <h2>2. Split it</h2>
-      <p class="sub">Split evenly across people, or set custom shares that add up to the total.</p>
-      <div class="row" style="align-items:flex-end;">
-        <div class="field" style="max-width:160px;"><label>Split between</label><input id="numPeople" type="number" min="1" value="2"></div>
-        <button class="btn ghost" id="evenSplitBtn" type="button">Split evenly</button>
-        <button class="btn ghost" id="addRowBtn" type="button">+ Add person</button>
+      <h2>2. How to pay it</h2>
+      <div class="row" style="margin-bottom:18px;">
+        <button class="btn ghost mode-btn active" id="modeSingleBtn" type="button">One payment</button>
+        <button class="btn ghost mode-btn" id="modeSplitBtn" type="button">Split between people</button>
       </div>
-      <div class="split-list" id="splitList"></div>
-      <div style="margin-top:16px;display:flex;align-items:center;gap:14px;">
-        <button class="btn" id="generateBtn" type="button">Generate QR codes</button>
-        <span id="sumCheck" class="sub" style="margin:0;"></span>
+
+      <div id="singleMode">
+        <p class="sub">Pay the whole total to this account as one payment.</p>
+        <button class="btn" id="generateSingleBtn" type="button">Generate QR</button>
+      </div>
+
+      <div id="splitMode" style="display:none;">
+        <p class="sub">Split evenly across people, or set custom shares that add up to the total.</p>
+        <div class="row" style="align-items:flex-end;">
+          <div class="field" style="max-width:160px;"><label>Split between</label><input id="numPeople" type="number" min="1" value="2"></div>
+          <button class="btn ghost" id="evenSplitBtn" type="button">Split evenly</button>
+          <button class="btn ghost" id="addRowBtn" type="button">+ Add person</button>
+        </div>
+        <div class="split-list" id="splitList"></div>
+        <div style="margin-top:16px;display:flex;align-items:center;gap:14px;">
+          <button class="btn" id="generateBtn" type="button">Generate QR codes</button>
+          <span id="sumCheck" class="sub" style="margin:0;"></span>
+        </div>
       </div>
     </div>
 
@@ -171,6 +206,24 @@ footer{text-align:center;color:var(--gray);font-size:12.5px;padding:36px 20px 50
     </div>
   </div>
 
+  <div class="card">
+    <h2>Why there's no "keep it under ₹2,000" auto-split</h2>
+    <p class="sub" style="margin-bottom:0;">A tool that automatically breaks one payment into pieces just to duck a fee or reporting threshold — say ₹5,000 as ₹1,999 + ₹1,999 + ₹1,002 — is called structuring, and it's treated as evasion in most places, India included, no matter how small the underlying charge is. It also solves nothing real: any proposed charge above ₹2,000 on UPI is reportedly a small merchant-side fee (MDR), not something the person paying owes, and GST has never applied to UPI at any amount. SplitPay only ever splits a bill between real people who each owe their own share — never one person's payment into fake "people."</p>
+  </div>
+
+  <div class="card">
+    <h2>How your data is kept</h2>
+    <p class="sub" style="margin-bottom:10px;">Everything — the form you're filling in and your past splits — is saved to this browser's local storage as you type. Refresh, close the tab, or come back tomorrow, and it's exactly as you left it. Nothing is sent anywhere; clearing it is one button in History.</p>
+  </div>
+
+  <div class="card" id="faqCard">
+    <h2>Frequently asked</h2>
+    <div class="faq-item"><b>Does the payee need to do anything?</b><p>No — they just receive each payment normally. They don't need this page open.</p></div>
+    <div class="faq-item"><b>Can shares be uneven?</b><p>Yes. Add people, type any amount for each, and the checker tells you when it adds up to the total.</p></div>
+    <div class="faq-item"><b>Will this hide a bank fee from me?</b><p>No. If your bank or the payee's bank charges a fee on a payment, that's between you and the bank — SplitPay doesn't change, hide, or route around any charge.</p></div>
+    <div class="faq-item"><b>Is my data backed up anywhere?</b><p>No — it lives only in this browser, on this device. Clearing your browser data will clear it too.</p></div>
+  </div>
+
   <footer>SplitPay stores everything locally in your browser. No data leaves your device. Built for splitting real bills fairly.</footer>
 </div>
 
@@ -190,13 +243,83 @@ function addRow(name='',amt=''){
   div.innerHTML=`<input class="pname" placeholder="Person ${rowId}" value="${name}">
     <input class="pamt amt" type="number" placeholder="₹ share" value="${amt}">
     <button class="remove" type="button" title="Remove">&times;</button>`;
-  div.querySelector('.remove').onclick=()=>{div.remove();checkSum();};
+  div.querySelector('.remove').onclick=()=>{div.remove();checkSum();saveForm();};
   div.querySelectorAll('input').forEach(i=>i.addEventListener('input',checkSum));
   splitList.appendChild(div);
 }
-addRow('Person 1'); addRow('Person 2');
+// ---- Form persistence (survives refresh) ----
+const FORM_KEY='splitpay_form';
+function saveForm(){
+  const rows=[...$$('.split-item')].map(r=>({
+    name:r.querySelector('.pname').value,
+    amt:r.querySelector('.pamt').value
+  }));
+  const state={
+    payeeName:$('#payeeName').value, payeeUpi:$('#payeeUpi').value,
+    totalAmt:$('#totalAmt').value, numPeople:$('#numPeople').value, rows
+  };
+  try{localStorage.setItem(FORM_KEY,JSON.stringify(state));}catch(e){}
+}
+function loadForm(){
+  let state=null;
+  try{state=JSON.parse(localStorage.getItem(FORM_KEY)||'null');}catch(e){}
+  if(!state){addRow('Person 1');addRow('Person 2');return;}
+  $('#payeeName').value=state.payeeName||'';
+  $('#payeeUpi').value=state.payeeUpi||'';
+  $('#totalAmt').value=state.totalAmt||'';
+  $('#numPeople').value=state.numPeople||2;
+  if(state.rows && state.rows.length){
+    state.rows.forEach(r=>addRow(r.name,r.amt));
+  }else{
+    addRow('Person 1');addRow('Person 2');
+  }
+}
+loadForm();
+checkSum();
+splitList.addEventListener('input',saveForm);
+['payeeName','payeeUpi','totalAmt','numPeople'].forEach(id=>$('#'+id).addEventListener('input',saveForm));
 
-$('#addRowBtn').onclick=()=>addRow();
+// ---- Mode toggle: single payment vs split ----
+const modeSingleBtn=$('#modeSingleBtn'), modeSplitBtn=$('#modeSplitBtn');
+function setMode(mode){
+  const single=mode==='single';
+  $('#singleMode').style.display=single?'block':'none';
+  $('#splitMode').style.display=single?'none':'block';
+  modeSingleBtn.classList.toggle('active',single);
+  modeSplitBtn.classList.toggle('active',!single);
+}
+modeSingleBtn.onclick=()=>setMode('single');
+modeSplitBtn.onclick=()=>setMode('split');
+
+$('#goScanBtn').onclick=()=>document.querySelector('.navlinks span[data-tab="scan"]').click();
+
+function renderSingleQr(upi,pname,amt,txn){
+  const grid=$('#resultGrid'); grid.innerHTML='';
+  const card=document.createElement('div'); card.className='qr-card';
+  const qDiv=document.createElement('div'); qDiv.id='qrSingle';
+  card.innerHTML=`<div class="name">${pname}</div>`;
+  card.appendChild(qDiv);
+  const rest=document.createElement('div');
+  rest.innerHTML=`<div class="amt">₹${amt.toFixed(2)}</div><div class="status">one payment · full amount</div>`;
+  card.appendChild(rest);
+  grid.appendChild(card);
+  new QRCode(qDiv,{text:upiLink(upi,pname,amt.toFixed(2),'Payment'),width:150,height:150,colorDark:'#202124',colorLight:'#ffffff'});
+  $('#resultsCard').style.display='block';
+  $('#resultsCard').scrollIntoView({behavior:'smooth'});
+  saveTxn(txn);
+  toast('QR ready');
+}
+
+$('#generateSingleBtn').onclick=()=>{
+  const upi=$('#payeeUpi').value.trim(), pname=$('#payeeName').value.trim()||'Payee';
+  const amt=parseFloat($('#totalAmt').value)||0;
+  if(!upi){toast('Enter or scan the payee\u2019s UPI account first');return;}
+  if(amt<=0){toast('Enter an amount to pay');return;}
+  const txn={id:Date.now(),payee:pname,upi,total:amt,parts:[{name:pname,amt}],date:new Date().toISOString()};
+  renderSingleQr(upi,pname,amt,txn);
+};
+
+$('#addRowBtn').onclick=()=>{addRow();saveForm();};
 
 $('#evenSplitBtn').onclick=()=>{
   const total=parseFloat($('#totalAmt').value)||0;
@@ -210,6 +333,7 @@ $('#evenSplitBtn').onclick=()=>{
     addRow('Person '+i, amt? amt.toFixed(2):'');
   }
   checkSum();
+  saveForm();
 };
 
 function checkSum(){
@@ -312,10 +436,13 @@ function handleScan(data){
   const am=params.get('am')||'';
   $('#payeeUpi').value=pa; $('#payeeName').value=decodeURIComponent(pn.replace(/\+/g,' '));
   if(am) $('#totalAmt').value=am;
-  $('#scanResult').textContent=`Found: ${pn||pa} — filled into the split form.`;
+  saveForm();
+  $('#fetchedNote').style.display='block';
+  $('#scanResult').textContent=`Found: ${pn||pa} — filled into the payment form.`;
   stopScan();
+  setMode('single');
   document.querySelector('.navlinks span[data-tab="split"]').click();
-  toast('QR read — details filled in');
+  toast('Account fetched from QR');
 }
 $('#startScanBtn').onclick=startScan;
 $('#stopScanBtn').onclick=stopScan;
